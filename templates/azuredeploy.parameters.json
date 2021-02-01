@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.1",
+  "parameters": {
+    "location": {
+      "value": "West Europe"
+    },
+    "applicationPrefix": {
+      "value": "mc"
+    },	
+    "apimPublisherEmail": {
+      "value": "massimo.crippa@codit.eu"
+    },
+    "apimSku": {
+      "value": "Developer"
+    },
+    "apimCapacity": {
+      "value": 1
+    },
+	"apimApiKey": {
+      "value": "super-secure"
+    },	
+    "allowTrafficOnlyFromFrontDoor": {
+      "value": true
+    },
+    "appServicePlanSku": {
+      "value": "S1"
+    }
+  }
+}

@@ -1,0 +1,1343 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Location for the resources."
+      }
+    },
+    "applicationPrefix": {
+      "type": "string",
+      "defaultValue": "mc",
+      "metadata": {
+        "description": "prefix appended to the resources created with this template"
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "defaultValue": "webfront-log",
+      "metadata": {
+        "description": "Name of the Log Analytics workspace"
+      }
+    },
+    "workspaceSku": {
+      "type": "string",
+      "allowedValues": [
+        "PerGB2018",
+        "Free",
+        "Standalone",
+        "PerNode",
+        "Standard",
+        "Premium"
+      ],
+      "defaultValue": "Standard",
+      "metadata": {
+        "description": "Pricing tier: PerGB2018 or legacy tiers (Free, Standalone, PerNode, Standard or Premium) which are not available to all customers."
+      }
+    },
+    "appInsightsName": {
+      "type": "string",
+      "defaultValue": "webfront-appins",
+      "metadata": {
+        "description": "The name of your Application Insights resource used by API Management."
+      }
+    },
+    "virtualNetwork": {
+      "type": "object",
+      "defaultValue": {
+        "name": "webfront-vnet",
+        "addressPrefixes": [
+          "10.0.0.0/16"
+        ],
+        "subnets": [
+          {
+            "name": "apim-snet",
+            "addressPrefix": "10.0.0.0/24",
+            "nsg": "mc-webfront-nsg",
+            "privateEndpointNetworkPolicies": "Disabled",
+            "privateLinkServiceNetworkPolicies": "Disabled",
+            "delegations": [
+              
+            ]
+          },
+          {
+            "name": "assets-snet",
+            "addressPrefix": "10.0.1.0/27",
+            "nsg": "mc-assets-nsg",
+            "privateEndpointNetworkPolicies": "Disabled",
+            "privateLinkServiceNetworkPolicies": "Enabled",
+            "delegations": [
+              {
+                "name": "delegation",
+                "properties": {
+                  "serviceName": "Microsoft.Web/serverFarms"
+                }
+              }
+            ]
+          },
+          {
+            "name": "debug-snet",
+            "addressPrefix": "10.0.2.0/28",
+            "nsg": "mc-debug-nsg",
+            "privateEndpointNetworkPolicies": "Disabled",
+            "privateLinkServiceNetworkPolicies": "Disabled",
+            "delegations": [
+              {
+                "name": "delegation",
+                "properties": {
+                  "serviceName": "Microsoft.ContainerInstance/containerGroups"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "metadata": {
+        "description": "Virtual Network configuration."
+      }
+    },
+    "apimServiceName": {
+      "type": "string",
+      "defaultValue": "webfront-apim",
+      "metadata": {
+        "description": "The name of your API Management service."
+      }
+    },
+    "apimPublisherEmail": {
+      "type": "string",
+      "defaultValue": "heythere@codit.eu",
+      "metadata": {
+        "description": "The email address of the owner of the service"
+      }
+    },
+    "apimPublisherName": {
+      "type": "string",
+      "defaultValue": "webfront",
+      "metadata": {
+        "description": "The name of the publisher."
+      }
+    },
+    "apimSku": {
+      "type": "string",
+      "allowedValues": [
+        "Developer",
+        "Premium"
+      ],
+      "defaultValue": "Developer",
+      "metadata": {
+        "description": "The pricing tier of this API Management service. Only Developer and Premium are supported when deploying into a shared VNET."
+      }
+    },
+    "apimCapacity": {
+      "type": "int",
+      "defaultValue": 1,
+      "metadata": {
+        "description": "Number of deployed units of the SKU."
+      }
+    },
+    "apimApiKey": {
+      "type": "string",
+      "defaultValue": "none",
+      "metadata": {
+        "description": "Api key value applied to the 'Custom' product."
+      }
+    },	
+    "frontDoorName": {
+      "type": "string",
+      "defaultValue": "webfront-afd",
+      "minLength": 5,
+      "maxLength": 64,
+      "metadata": {
+        "description": "Name of the Azure Front Door which is globally unique. Min length: 5. Max length: 64"
+      }
+    },
+    "frontDoorEnforceCertificateNameCheck": {
+      "type": "string",
+      "defaultValue": "Disabled",
+      "allowedValues": [
+        "Enabled",
+        "Disabled"
+      ],
+      "metadata": {
+        "description": "Whether to enforce certificate name check on HTTPS requests to all backend pools. No effect on non-HTTPS requests. - Enabled or Disabled"
+      }
+    },
+    "frontDoorFrontendEndpoint": {
+      "type": "object",
+      "defaultValue": {
+        "name": "MainFrontendEndpoint",
+        "sessionAffinityEnabledState": "Disabled",
+        "sessionAffinityTtlSeconds": 0
+      },
+      "metadata": {
+        "description": "This parameter contains the name and properties of the frontend endpoint."
+      }
+    },
+    "frontDoorBackendPool": {
+      "type": "object",
+      "defaultValue": {
+        "name": "ApimBackendPool",
+        "loadBalancerName": "ApimLoadBalancer"
+      },
+      "metadata": {
+        "description": "This parameter contains the name and properties of the Application Gateway Backend Pool"
+      }
+    },
+    "frontDoorRoutingRule": {
+      "type": "object",
+      "defaultValue": {
+        "name": "ApimRoutingRule",
+        "acceptedProtocols": [
+          "Https"
+        ],
+        "patternsToMatch": [
+          "/*"
+        ],
+        "customForwardingPath": "/",
+        "forwardingProtocol": "MatchRequest",
+        "cacheConfiguration": {
+          "queryParameterStripDirective": "StripNone",
+          "dynamicCompression": "Enabled"
+        }
+      },
+      "metadata": {
+        "description": "This parameter contains the name and properties of the routing rule."
+      }
+    },
+    "frontDoorHealthProbeSettings": {
+      "type": "object",
+      "defaultValue": {
+        "name": "ApimHealthProbeSettings",
+        "intervalInSeconds": 30,
+        "path": "/status-0123456789abcdef",
+        "protocol": "Https"
+      },
+      "metadata": {
+        "description": "This parameter contains the name and properties of the health probe settings."
+      }
+    },
+    "deployWaf": {
+      "type": "bool",
+      "defaultValue": true,
+      "metadata": {
+        "description": "Specifies whether to deploy a global WAF policy in Front Door."
+      }
+    },
+    "wafPolicyName": {
+      "type": "string",
+      "defaultValue": "webfrontwaf",
+      "metadata": {
+        "description": "The name of the WAF policy"
+      }
+    },
+    "wafMode": {
+      "type": "string",
+      "allowedValues": [
+        "Detection",
+        "Prevention"
+      ],
+      "defaultValue": "Prevention",
+      "metadata": {
+        "description": "Describes if it is in detection mode or prevention mode at policy level."
+      }
+    },
+    "allowTrafficOnlyFromFrontDoor": {
+      "type": "bool",
+      "defaultValue": false,
+      "metadata": {
+        "description": "Specifies whether to allow traffic to API Management public endpoints only from Front Door."
+      }
+    },
+    "appServicePrivateEndpointName": {
+      "type": "string",
+      "defaultValue": "mc-app-priv-edp",
+      "metadata": {
+        "description": "Specifies the name of the private link to the appservice."
+      }
+    },
+    "appServiceName": {
+      "type": "string",
+      "defaultValue": "webfront-app",
+      "metadata": {
+        "description": "The name of the app service to create."
+      }
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "defaultValue": "webfront-plan",
+      "metadata": {
+        "description": "The name of the app service plan to create."
+      }
+    },
+    "appServicePlanSku": {
+      "type": "string",
+      "defaultValue": "S1",
+      "allowedValues": [
+        "F1",
+        "D1",
+        "B1",
+        "B2",
+        "B3",
+        "S1",
+        "S2",
+        "S3",
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "metadata": {
+        "description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
+      }
+    },
+    "aciName": {
+      "type": "string",
+      "defaultValue": "webfront-aci",
+      "metadata": {
+        "description": "The name of the aci to create."
+      }
+    }
+  },
+  "variables": {
+    "workspaceName": "[concat(parameters('applicationPrefix'),'-', parameters('workspaceName'))]",
+    "appInsightsName": "[concat(parameters('applicationPrefix'),'-', parameters('appInsightsName'))]",
+    "apimServiceName": "[concat(parameters('applicationPrefix'),'-', parameters('apimServiceName'))]",
+    "apimPublisherName": "[concat(parameters('applicationPrefix'),'-', parameters('apimPublisherName'))]",
+    "frontDoorName": "[concat(parameters('applicationPrefix'),'-', parameters('frontDoorName'))]",
+    "appServiceName": "[concat(parameters('applicationPrefix'),'-', parameters('appServiceName'))]",
+    "appServicePlanName": "[concat(parameters('applicationPrefix'),'-', parameters('appServicePlanName'))]",
+    "wafPolicyName": "[concat(parameters('applicationPrefix'), parameters('wafPolicyName'))]",
+    "virtualNetworkName": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').name)]",
+    "aciName": "[concat(parameters('applicationPrefix'),'-', parameters('aciName'))]",
+    "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[0].nsg)]",
+    "nsgId2": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[1].nsg)]",
+    "nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[2].nsg)]",
+    "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
+    "apimId": "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))]",
+    "appInsightsId": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
+    "apimSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[0].name)]",
+    "appsvcSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[1].name)]",
+    "aciSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[2].name)]",
+    "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces/', variables('workspaceName'))]",
+    "loggerId": "[resourceId('Microsoft.ApiManagement/service/loggers', variables('apimServiceName'), variables('appInsightsName'))]",
+    "frontDoorId": "[resourceId('Microsoft.Network/frontdoors', variables('frontDoorName'))]",
+    "frontDoorBackendPoolId": "[resourceId('Microsoft.Network/frontdoors/backendPools', variables('frontDoorName'), parameters('frontDoorBackendPool').name)]",
+    "frontDoorHealthProbeSettingsId": "[resourceId('Microsoft.Network/frontdoors/healthProbeSettings', variables('frontDoorName'), parameters('frontDoorHealthProbeSettings').name)]",
+    "frontDoorLoadBalancerId": "[resourceId('Microsoft.Network/frontdoors/loadBalancingSettings', variables('frontDoorName'), parameters('frontDoorBackendPool').loadBalancerName)]",
+    "frontDoorFrontedEndpointId": "[resourceId('Microsoft.Network/frontdoors/frontendEndpoints', variables('frontDoorName'), parameters('frontDoorFrontendEndpoint').name)]",
+    "wafPolicyId": "[resourceId('Microsoft.Network/FrontDoorWebApplicationFirewallPolicies', variables('wafPolicyName'))]",
+    "loaderApiId": "[resourceId('Microsoft.ApiManagement/service/apis', variables('apimServiceName'), 'loaderApi')]",
+    "webfrontEchoApiId": "[resourceId('Microsoft.ApiManagement/service/apis', variables('apimServiceName'), 'webfrontEchoApi')]",
+    "customProductId": "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]",
+    "testMethodId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'loaderApi', 'test')]",
+    "assetsAppServicePrivateEndpointGroupName": "assets",
+    "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('assetsAppServicePrivateEndpointGroupName'))]",
+    "appServicePrivateDnsZoneGroup": "[concat(parameters('appServicePrivateEndpointName'),'/', variables('assetsAppServicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+    "aciNetworkProfileName": "[concat(parameters('applicationPrefix'),'-networkprofile')]"
+  },
+  "resources": [
+    {
+      "apiVersion": "2020-03-01-preview",
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "name": "[variables('workspaceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "sku": {
+          "name": "[parameters('workspaceSku')]"
+        }
+      },
+      "resources": [
+        
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[parameters('virtualNetwork').subnets[0].nsg]",
+      "apiVersion": "2019-09-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "ClientCommunicationToAPIManagementInbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "80",
+              "sourceAddressPrefix": "[if(parameters('allowTrafficOnlyFromFrontDoor'), 'AzureFrontDoor.Backend', 'Internet')]",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "SecureClientCommunicationToAPIManagementInbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "[if(parameters('allowTrafficOnlyFromFrontDoor'), 'AzureFrontDoor.Backend', 'Internet')]",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 110,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "ManagementEndpointForAzurePortalAndPowershellInbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3443",
+              "sourceAddressPrefix": "ApiManagement",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 120,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "DependencyOnRedisCacheInbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "6381-6383",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 130,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "AzureInfrastructureLoadBalancer",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "*",
+              "sourceAddressPrefix": "AzureLoadBalancer",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 180,
+              "direction": "Inbound"
+            }
+          },
+          {
+            "name": "DependencyOnAzureSQLOutbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "1433",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "Sql",
+              "access": "Allow",
+              "priority": 140,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "DependencyForLogToEventHubPolicyOutbound",
+            "properties": {
+              "protocol": "*",
+              "sourcePortRange": "*",
+              "destinationPortRange": "5671",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "EventHub",
+              "access": "Allow",
+              "priority": 150,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "DependencyOnRedisCacheOutbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "6381-6383",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "VirtualNetwork",
+              "access": "Allow",
+              "priority": 160,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "DependencyOnAzureFileShareForGitOutbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "445",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "Storage",
+              "access": "Allow",
+              "priority": 170,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "PublishDiagnosticLogsAndMetricsOutbound",
+            "properties": {
+              "description": "APIM Logs and Metrics for consumption by admins and your IT team are all part of the management plane",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "AzureMonitor",
+              "access": "Allow",
+              "priority": 185,
+              "direction": "Outbound",
+              "destinationPortRanges": [
+                "443",
+                "12000",
+                "1886"
+              ]
+            }
+          },
+          {
+            "name": "ConnectToSmtpRelayForSendingEmailsOutbound",
+            "properties": {
+              "description": "APIM features the ability to generate email traffic as part of the data plane and the management plane",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "Internet",
+              "access": "Allow",
+              "priority": 190,
+              "direction": "Outbound",
+              "destinationPortRanges": [
+                "25",
+                "587",
+                "25028"
+              ]
+            }
+          },
+          {
+            "name": "AuthenticateToAzureActiveDirectoryOutbound",
+            "properties": {
+              "description": "Connect to Azure Active Directory for Developer Portal Authentication or for Oauth2 flow during any Proxy Authentication",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "AzureActiveDirectory",
+              "access": "Allow",
+              "priority": 200,
+              "direction": "Outbound",
+              "destinationPortRanges": [
+                "80",
+                "443"
+              ]
+            }
+          },
+          {
+            "name": "DependencyOnAzureStorageOutbound",
+            "properties": {
+              "description": "APIM service dependency on Azure Blob and Azure Table Storage",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "Storage",
+              "access": "Allow",
+              "priority": 100,
+              "direction": "Outbound"
+            }
+          },
+          {
+            "name": "PublishMonitoringLogsOutbound",
+            "properties": {
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "443",
+              "sourceAddressPrefix": "VirtualNetwork",
+              "destinationAddressPrefix": "AzureCloud",
+              "access": "Allow",
+              "priority": 300,
+              "direction": "Outbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[parameters('virtualNetwork').subnets[1].nsg]",
+      "apiVersion": "2019-09-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[parameters('virtualNetwork').subnets[2].nsg]",
+      "apiVersion": "2019-09-01",
+      "location": "[parameters('location')]",
+      "properties": {
+        "securityRules": [
+          
+        ]
+      }
+    },
+    {
+      "apiVersion": "2020-03-01",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('virtualNetworkName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('nsgId')]",
+        "[variables('nsgId2')]",
+        "[variables('nsgId3')]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": "[parameters('virtualNetwork').addressPrefixes]"
+        },
+        "copy": [
+          {
+            "name": "subnets",
+            "count": "[length(parameters('virtualNetwork').subnets)]",
+            "input": {
+              "name": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].name]",
+              "properties": {
+                "addressPrefix": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].addressPrefix]",
+                "networkSecurityGroup": {
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[copyIndex('subnets')].nsg)]"
+                },
+                "privateEndpointNetworkPolicies": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].privateEndpointNetworkPolicies]",
+                "privateLinkServiceNetworkPolicies": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].privateLinkServiceNetworkPolicies]",
+                "delegations": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].delegations]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "[variables('appInsightsName')]",
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2018-05-01-preview",
+      "location": "[parameters('location')]",
+      "kind": "web",
+      "tags": {
+        "name": "[variables('appInsightsName')]",
+        "resource": "[variables('apimServiceName')]",
+        "service": "Application Insights"
+      },
+      "properties": {
+        "Application_Type": "web",
+        "Request_Source": "rest"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/loggers",
+      "name": "[concat(variables('apimServiceName'), '/', variables('appInsightsName'))]",
+      "apiVersion": "2019-12-01",
+      "dependsOn": [
+        "[variables('apimId')]"
+      ],
+      "properties": {
+        "loggerType": "applicationInsights",
+        "description": "Logger resources to APIM",
+        "credentials": {
+          "instrumentationKey": "[reference(variables('appInsightsId'), '2015-05-01').InstrumentationKey]"
+        }
+      }
+    },
+    {
+      "name": "[variables('apimServiceName')]",
+      "type": "Microsoft.ApiManagement/service",
+      "apiVersion": "2019-12-01",
+      "location": "[parameters('location')]",
+      "tags": {
+        "name": "[variables('apimServiceName')]",
+        "service": "APIM"
+      },
+      "sku": {
+        "name": "[parameters('apimSku')]",
+        "capacity": "[parameters('apimCapacity')]"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "dependsOn": [
+        "[variables('vnetId')]"
+      ],
+      "properties": {
+        "publisherEmail": "[parameters('apimPublisherEmail')]",
+        "publisherName": "[variables('apimPublisherName')]",
+        "virtualNetworkType": "External",
+        "virtualNetworkConfiguration": {
+          "subnetResourceId": "[variables('apimSubnetId')]"
+        }
+      },
+      "resources": [
+        {
+          "apiVersion": "2019-12-01",
+          "type": "products",
+          "name": "custom",
+          "dependsOn": [
+            "[variables('apimId')]",
+            "[variables('loaderApiId')]",
+            "[variables('webfrontEchoApiId')]"
+          ],
+          "properties": {
+            "displayName": "Custom",
+            "description": "Subscribers have completely unlimited access to the API. Administrator approval is required.",
+            "subscriptionRequired": true,
+            "approvalRequired": false,
+            "subscriptionsLimit": 1,
+            "state": "published"
+          }
+        },
+        {
+          "type": "backends",
+          "apiVersion": "2020-06-01-preview",
+          "name": "downstream-api-backend",
+          "dependsOn": [
+            "[variables('apimId')]"
+          ],
+          "properties": {
+            "description": "base URL of the downstream api",
+            "url": "https://mc-webfront-app.azurewebsites.net/api/v1",
+            "protocol": "http",
+            "credentials": {
+              "query": {
+                
+              },
+              "header": {
+                
+              }
+            },
+            "tls": {
+              "validateCertificateChain": true,
+              "validateCertificateName": true
+            }
+          }
+        },
+        {
+          "type": "backends",
+          "apiVersion": "2020-06-01-preview",
+          "name": "postman-echo-backend",
+          "dependsOn": [
+            "[variables('apimId')]"
+          ],
+          "properties": {
+            "description": "base UL of postman echo",
+            "url": "https://postman-echo.com",
+            "protocol": "http",
+            "credentials": {
+              "query": {
+                
+              },
+              "header": {
+                
+              }
+            },
+            "tls": {
+              "validateCertificateChain": true,
+              "validateCertificateName": true
+            }
+          }
+        },
+        {
+          "type": "apis",
+          "name": "loaderApi",
+          "apiVersion": "2019-12-01",
+          "dependsOn": [
+            "[variables('apimId')]"
+          ],
+          "properties": {
+            "displayName": "loader API",
+            "apiRevision": "1",
+            "description": "This is a loader API.",
+            "subscriptionRequired": false,
+            "serviceUrl": "https://none",
+            "path": "loaderio-a99847cffd746e16f9f630462ea6afd3",
+            "protocols": [
+              "https"
+            ],
+            "isCurrent": true
+          },
+          "resources": [
+            {
+              "type": "operations",
+              "name": "test",
+              "apiVersion": "2019-12-01",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('loaderApiId')]"
+              ],
+              "properties": {
+                "displayName": "get",
+                "method": "GET",
+                "urlTemplate": "/",
+                "templateParameters": [
+                  
+                ],
+                "responses": [
+                  
+                ]
+              },
+              "resources": [
+                {
+                  "name": "policy",
+                  "type": "policies",
+                  "apiVersion": "2019-12-01",
+                  "dependsOn": [
+                    "[variables('apimId')]",
+                    "[variables('loaderApiId')]",
+                    "[variables('testMethodId')]"
+                  ],
+                  "properties": {
+                    "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <set-header name=\"Cache-Control\" exists-action=\"override\">\r\n      <value>no-store</value>\r\n    </set-header>\r\n    <return-response response-variable-name=\"existing response variable\">\r\n      <set-status code=\"200\" reason=\"OK\" />\r\n      <set-body>loaderio-a99847cffd746e16f9f630462ea6afd3</set-body>\r\n    </return-response>\r\n  </inbound>\r\n  <backend>\r\n    <base />\r\n  </backend>\r\n  <outbound>\r\n    <base />\r\n  </outbound>\r\n  <on-error>\r\n    <base />\r\n  </on-error>\r\n</policies>",
+                    "format": "xml"
+                  }
+                }
+              ]
+            },
+            {
+              "apiVersion": "2019-12-01",
+              "type": "policies",
+              "name": "policy",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('loaderApiId')]"
+              ],
+              "properties": {
+                "format": "xml",
+                "value": "<policies>\r\n\t<inbound>\r\n\t\t<base />\r\n\t\t<cors>\r\n\t\t\t<allowed-origins>\r\n\t\t\t\t<origin>*</origin>\r\n\t\t\t</allowed-origins>\r\n\t\t\t<allowed-methods>\r\n\t\t\t\t<method>GET</method>\r\n\t\t\t\t<method>POST</method>\r\n\t\t\t\t<method>PUT</method>\r\n\t\t\t\t<method>DELETE</method>\r\n\t\t\t\t<method>HEAD</method>\r\n\t\t\t\t<method>OPTIONS</method>\r\n\t\t\t\t<method>PATCH</method>\r\n\t\t\t\t<method>TRACE</method>\r\n\t\t\t</allowed-methods>\r\n\t\t\t<allowed-headers>\r\n\t\t\t\t<header>*</header>\r\n\t\t\t</allowed-headers>\r\n\t\t\t<expose-headers>\r\n\t\t\t\t<header>*</header>\r\n\t\t\t</expose-headers>\r\n\t\t</cors>\r\n\t</inbound>\r\n\t<backend>\r\n\t\t<base />\r\n\t</backend>\r\n\t<outbound>\r\n\t\t<base />\r\n\t</outbound>\r\n\t<on-error>\r\n\t\t<base />\r\n\t</on-error>\r\n</policies>"
+              }
+            },
+            {
+              "type": "diagnostics",
+              "name": "applicationinsights",
+              "apiVersion": "2019-12-01",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('loggerId')]",
+                "[variables('loaderApiId')]"
+              ],
+              "properties": {
+                "alwaysLog": "allErrors",
+                "loggerId": "[variables('loggerId')]",
+                "sampling": {
+                  "samplingType": "fixed",
+                  "percentage": 100
+                },
+                "enableHttpCorrelationHeaders": true
+              }
+            }
+          ]
+        },
+        {
+          "type": "apis",
+          "name": "webfrontEchoApi",
+          "apiVersion": "2019-12-01",
+          "dependsOn": [
+            "[variables('apimId')]"
+          ],
+          "properties": {
+            "displayName": "Webfront Echo API",
+            "apiRevision": "1",
+            "description": "This is the Webfront Echo API.",
+            "subscriptionRequired": true,
+            "serviceUrl": "https://configured-via-policies",
+            "path": "front-echo",
+            "protocols": [
+              "https"
+            ],
+            "subscriptionKeyParameterNames": {
+              "header": "Ocp-Apim-Subscription-Key",
+              "query": "subscription-key"
+            },
+            "isCurrent": true
+          },
+          "resources": [
+            {
+              "type": "operations",
+              "name": "get-health",
+              "apiVersion": "2019-12-01",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('webfrontEchoApiId')]"
+              ],
+              "properties": {
+                "displayName": "GET Health",
+                "method": "GET",
+                "urlTemplate": "/health",
+                "description": "The HTTP GET request method is meant to retrieve data from a server. The data is identified by a unique URI (Uniform Resource Identifier). "
+              },
+              "resources": [
+                {
+                  "name": "policy",
+                  "type": "policies",
+                  "apiVersion": "2019-12-01",
+                  "dependsOn": [
+                    "[variables('apimId')]",
+                    "[variables('webfrontEchoApiId')]",
+                    "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'webfrontEchoApi', 'get-health')]"
+                  ],
+                  "properties": {
+                    "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <set-backend-service backend-id=\"downstream-api-backend\" />\r\n  </inbound>\r\n  <backend>\r\n    <base />\r\n  </backend>\r\n  <outbound>\r\n    <base />\r\n  </outbound>\r\n  <on-error>\r\n    <base />\r\n  </on-error>\r\n</policies>",
+                    "format": "xml"
+                  }
+                }
+              ]			  
+            },
+            {
+              "type": "operations",
+              "name": "get-request",
+              "apiVersion": "2019-12-01",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('webfrontEchoApiId')]"
+              ],
+              "properties": {
+                "displayName": "GET Request",
+                "method": "GET",
+                "urlTemplate": "/get",
+                "description": "The HTTP GET request method is meant to retrieve data from a server. The data is identified by a unique URI (Uniform Resource Identifier). "
+              },
+              "resources": [
+                {
+                  "name": "policy",
+                  "type": "policies",
+                  "apiVersion": "2019-12-01",
+                  "dependsOn": [
+                    "[variables('apimId')]",
+                    "[variables('webfrontEchoApiId')]",
+                    "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'webfrontEchoApi', 'get-request')]"
+                  ],
+                  "properties": {
+                    "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <set-backend-service backend-id=\"postman-echo-backend\" />\r\n  </inbound>\r\n  <backend>\r\n    <base />\r\n  </backend>\r\n  <outbound>\r\n    <base />\r\n  </outbound>\r\n  <on-error>\r\n    <base />\r\n  </on-error>\r\n</policies>",
+                    "format": "xml"
+                  }
+                }
+              ]			  
+            },
+            {
+              "apiVersion": "2019-12-01",
+              "type": "policies",
+              "name": "policy",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('webfrontEchoApiId')]"
+              ],
+              "properties": {
+                "value": "<policies>\r\n  <inbound>\r\n    <base />\r\n    <cors>\r\n      <allowed-origins>\r\n        <origin>*</origin>\r\n      </allowed-origins>\r\n      <allowed-methods>\r\n        <method>GET</method>\r\n        <method>POST</method>\r\n        <method>PUT</method>\r\n        <method>DELETE</method>\r\n        <method>HEAD</method>\r\n        <method>OPTIONS</method>\r\n        <method>PATCH</method>\r\n        <method>TRACE</method>\r\n      </allowed-methods>\r\n      <allowed-headers>\r\n        <header>*</header>\r\n      </allowed-headers>\r\n      <expose-headers>\r\n        <header>*</header>\r\n      </expose-headers>\r\n    </cors>\r\n  </inbound>\r\n  <backend>\r\n    <base />\r\n  </backend>\r\n  <outbound>\r\n    <base />\r\n    <set-header name=\"Cache-Control\" exists-action=\"override\">\r\n      <value>no-store</value>\r\n    </set-header>\r\n  </outbound>\r\n  <on-error>\r\n    <base />\r\n  </on-error>\r\n</policies>",
+                "format": "xml"
+              }
+            },
+            {
+              "type": "diagnostics",
+              "name": "applicationinsights",
+              "apiVersion": "2019-12-01",
+              "dependsOn": [
+                "[variables('apimId')]",
+                "[variables('loggerId')]",
+                "[variables('webfrontEchoApiId')]"
+              ],
+              "properties": {
+                "alwaysLog": "allErrors",
+                "loggerId": "[variables('loggerId')]",
+                "sampling": {
+                  "samplingType": "fixed",
+                  "percentage": 100
+                },
+                "enableHttpCorrelationHeaders": true
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/policies",
+      "apiVersion": "2020-06-01-preview",
+      "name": "[concat(variables('apimServiceName'), '/policy')]",
+      "dependsOn": [
+        "[variables('apimId')]"
+      ],
+      "properties": {
+        "value": "<policies>\r\n  <inbound>\r\n    <!--Use consumer correlation id or generate new one-->\r\n    <set-variable name=\"correlation-id\" value=\"@(context.Request.Headers.ContainsKey(&quot;x-correlation-id&quot;) ? context.Request.Headers.GetValueOrDefault(&quot;x-correlation-id&quot;) : Guid.NewGuid().ToString())\" />\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n    <!--Trace the correlation id-->\r\n    <trace source=\"Global APIM Policy\" severity=\"information\">\r\n      <message>API Request received</message>\r\n      <metadata name=\"correlation-id\" value=\"@((string)context.Variables[&quot;correlation-id&quot;])\" />\r\n    </trace>\r\n  </inbound>\r\n  <backend>\r\n    <forward-request fail-on-error-status-code=\"true\" />\r\n  </backend>\r\n  <outbound>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n  </outbound>\r\n  <on-error>\r\n    <set-body template=\"none\">@($\"Something went wrong.  Please contact support with this correlation id: {(string)context.Variables[\"correlation-id\"]}.\")</set-body>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n  </on-error>\r\n</policies>",
+        "format": "xml"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/products/apis",
+      "apiVersion": "2020-06-01-preview",
+      "name": "[concat(variables('apimServiceName'), '/custom/loaderApi')]",
+	  "properties":{},
+      "dependsOn": [
+        "[variables('apimId')]",
+		"[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
+      ]
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/products/apis",
+      "apiVersion": "2020-06-01-preview",
+      "name": "[concat(variables('apimServiceName'), '/custom/webfrontEchoApi')]",
+	  "properties":{},
+      "dependsOn": [
+		"[variables('apimId')]",
+        "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
+      ]
+    },
+	{
+	  "type": "Microsoft.ApiManagement/service/subscriptions",
+	  "name": "[concat(variables('apimServiceName'), '/custom-admin-subscription')]",
+	  "apiVersion": "2019-01-01",
+	  "properties": {
+		"scope": "[resourceId('Microsoft.ApiManagement/service/products', parameters('apimServiceName'), 'custom')]",
+		"displayName": "custom-admin-subscription",
+		"primaryKey": "[parameters('apimApiKey')]",
+		"state": "active",
+		"allowTracing": "true"
+	  },
+	  "dependsOn": [
+			"[variables('apimId')]",
+			"[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
+	  ]  
+	},	
+    {
+      "type": "Microsoft.ApiManagement/service/providers/diagnosticsettings",
+      "name": "[concat(variables('apimServiceName'), '/Microsoft.Insights/service')]",
+      "apiVersion": "2016-09-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('apimId')]",
+        "[variables('workspaceId')]"
+      ],
+      "properties": {
+        "workspaceId": "[variables('workspaceId')]",
+        "logs": [
+          {
+            "category": "GatewayLogs",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 0
+            }
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "timeGrain": "PT1M",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": false,
+              "days": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "condition": "[parameters('deployWaf')]",
+      "apiVersion": "2019-03-01",
+      "type": "Microsoft.Network/FrontDoorWebApplicationFirewallPolicies",
+      "name": "[variables('wafPolicyName')]",
+      "location": "global",
+      "properties": {
+        "policySettings": {
+          "mode": "[parameters('wafMode')]",
+          "enabledState": "Enabled"
+        },
+        "managedRules": {
+          "managedRuleSets": [
+            {
+              "ruleSetType": "DefaultRuleSet",
+              "ruleSetVersion": "1.0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/frontdoors",
+      "apiVersion": "2019-05-01",
+      "name": "[variables('frontDoorName')]",
+      "location": "Global",
+      "dependsOn": [
+        "[variables('wafPolicyId')]"
+      ],
+      "properties": {
+        "backendPoolsSettings": {
+          "enforceCertificateNameCheck": "[parameters('frontDoorEnforceCertificateNameCheck')]",
+          "sendRecvTimeoutSeconds": 120
+        },
+        "enabledState": "Enabled",
+        "resourceState": "Enabled",
+        "backendPools": [
+          {
+            "name": "[parameters('frontDoorBackendPool').name]",
+            "properties": {
+              "backends": [
+                {
+                  "address": "[reference(resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))).hostnameConfigurations[0].hostName]",
+                  "httpPort": 80,
+                  "httpsPort": 443,
+                  "priority": 1,
+                  "weight": 100,
+                  "backendHostHeader": "[reference(resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))).hostnameConfigurations[0].hostName]"
+                }
+              ],
+              "healthProbeSettings": {
+                "id": "[variables('frontDoorHealthProbeSettingsId')]"
+              },
+              "loadBalancingSettings": {
+                "id": "[variables('frontDoorLoadBalancerId')]"
+              }
+            }
+          }
+        ],
+        "healthProbeSettings": [
+          {
+            "name": "[parameters('frontDoorHealthProbeSettings').name]",
+            "properties": {
+              "intervalInSeconds": "[parameters('frontDoorHealthProbeSettings').intervalInSeconds]",
+              "path": "[parameters('frontDoorHealthProbeSettings').path]",
+              "protocol": "[parameters('frontDoorHealthProbeSettings').protocol]"
+            }
+          }
+        ],
+        "frontendEndpoints": [
+          {
+            "name": "[parameters('frontDoorFrontendEndpoint').name]",
+            "properties": {
+              "hostName": "[concat(toLower(variables('frontDoorName')), '.azurefd.net')]",
+              "sessionAffinityEnabledState": "[parameters('frontDoorFrontendEndpoint').sessionAffinityEnabledState]",
+              "sessionAffinityTtlSeconds": "[parameters('frontDoorFrontendEndpoint').sessionAffinityTtlSeconds]",
+              "resourceState": "Enabled",
+              "webApplicationFirewallPolicyLink": {
+                "id": "[if(parameters('deployWaf'), variables('wafPolicyId'), json('null'))]"
+              }
+            }
+          }
+        ],
+        "loadBalancingSettings": [
+          {
+            "name": "[parameters('frontDoorBackendPool').loadBalancerName]",
+            "properties": {
+              "additionalLatencyMilliseconds": 0,
+              "sampleSize": 4,
+              "successfulSamplesRequired": 2
+            }
+          }
+        ],
+        "routingRules": [
+          {
+            "name": "[parameters('frontDoorRoutingRule').name]",
+            "properties": {
+              "frontendEndpoints": [
+                {
+                  "id": "[variables('frontDoorFrontedEndpointId')]"
+                }
+              ],
+              "acceptedProtocols": "[parameters('frontDoorRoutingRule').acceptedProtocols]",
+              "patternsToMatch": "[parameters('frontDoorRoutingRule').patternsToMatch]",
+              "routeConfiguration": {
+                "@odata.type": "#Microsoft.Azure.FrontDoor.Models.FrontdoorForwardingConfiguration",
+                "customForwardingPath": "/",
+                "forwardingProtocol": "[parameters('frontDoorRoutingRule').forwardingProtocol]",
+                "backendPool": {
+                  "id": "[variables('frontDoorBackendPoolId')]"
+                },
+                "cacheConfiguration": "[parameters('frontDoorRoutingRule').cacheConfiguration]"
+              }
+            }
+          }
+        ],
+        "friendlyName": "[variables('frontDoorName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Network/frontdoors/providers/diagnosticsettings",
+      "name": "[concat(variables('frontDoorName'), '/Microsoft.Insights/service')]",
+      "apiVersion": "2016-09-01",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('frontDoorId')]",
+        "[variables('workspaceId')]"
+      ],
+      "properties": {
+        "workspaceId": "[variables('workspaceId')]",
+        "logs": [
+          {
+            "category": "FrontdoorAccessLog",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 0
+            }
+          },
+          {
+            "category": "FrontdoorWebApplicationFirewallLog",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": true,
+              "days": 0
+            }
+          }
+        ],
+        "metrics": [
+          {
+            "category": "AllMetrics",
+            "timeGrain": "PT1M",
+            "enabled": true,
+            "retentionPolicy": {
+              "enabled": false,
+              "days": 0
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[parameters('location')]",
+      "sku": {
+        "name": "[parameters('appServicePlanSku')]"
+      },
+      "kind": "app,linux",
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2019-08-01",
+      "name": "[variables('appServiceName')]",
+      "location": "[parameters('location')]",
+      "kind": "app,linux,container",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/serverFarms', variables('appServicePlanName'))]",
+        "[variables('vnetId')]"
+      ],
+      "properties": {
+        "siteConfig": {
+          "name": "[variables('appServiceName')]",
+          "appSettings": [
+            {
+              "name": "WEBSITES_ENABLE_APP_SERVICE_STORAGE",
+              "value": "false"
+            },
+            {
+              "name": "ApplicationInsightKey",
+              "value": "[reference(variables('appInsightsId'), '2015-05-01').InstrumentationKey]"
+            }
+          ],
+          "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.1",
+          "alwaysOn": true,
+          "http20Enabled": true,
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled"
+        },
+        "serverFarmId": "[resourceId('Microsoft.Web/serverFarms', variables('appServicePlanName'))]"
+      },
+      "resources": [
+        {
+          "name": "virtualNetwork",
+          "type": "config",
+          "apiVersion": "2019-08-01",
+          "dependsOn": [
+            "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]"
+          ],
+          "properties": {
+            "subnetResourceId": "[variables('appsvcSubnetId')]",
+            "swiftSupported": true
+          }
+        }
+      ]
+    },
+    {
+      "type": "Microsoft.Network/networkProfiles",
+      "apiVersion": "2018-08-01",
+      "name": "[variables('aciNetworkProfileName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[variables('vnetId')]"
+      ],
+      "properties": {
+        "containerNetworkInterfaceConfigurations": [
+          {
+            "name": "aci-container-nic",
+            "properties": {
+              "ipConfigurations": [
+                {
+                  "name": "aci-ip-config-profile",
+                  "properties": {
+                    "subnet": {
+                      "id": "[variables('aciSubnetId')]"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.ContainerInstance/containerGroups",
+      "apiVersion": "2018-10-01",
+      "name": "[variables('aciName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        
+      },
+      "dependsOn": [
+        "[variables('vnetId')]",
+        "[resourceId('Microsoft.Network/networkProfiles', variables('aciNetworkProfileName'))]"
+      ],
+      "properties": {
+        "containers": [
+          {
+            "name": "[variables('aciName')]",
+            "properties": {
+              "image": "curlimages/curl",
+              "command": [
+                "tail",
+                "-f",
+                "/dev/null"
+              ],
+              "ports": [
+                {
+                  "protocol": "TCP",
+                  "port": 80
+                }
+              ],
+              "environmentVariables": [
+                
+              ],
+              "resources": {
+                "requests": {
+                  "memoryInGB": 1.5,
+                  "cpu": 1
+                }
+              }
+            }
+          }
+        ],
+        "restartPolicy": "Never",
+        "osType": "Linux",
+        "networkProfile": {
+          "id": "[resourceId('Microsoft.Network/networkProfiles', variables('aciNetworkProfileName'))]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "apiManagement": {
+      "value": "[reference(resourceId('Microsoft.ApiManagement/service', variables('apimServiceName')), '2019-12-01', 'Full')]",
+      "type": "object"
+    }
+  }
+}
