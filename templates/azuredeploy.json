@@ -68,7 +68,7 @@
             "addressPrefix": "10.0.1.0/27",
             "nsg": "mc-assets-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
-            "privateLinkServiceNetworkPolicies": "Enabled",
+            "privateLinkServiceNetworkPolicies": "Disabled",
             "delegations": [
               {
                 "name": "delegation",
@@ -92,7 +92,17 @@
                 }
               }
             ]
-          }
+          },
+          {
+            "name": "endpoints-snet",
+            "addressPrefix": "10.0.3.0/28",
+            "nsg": "mc-webfront-nsg",
+            "privateEndpointNetworkPolicies": "Disabled",
+            "privateLinkServiceNetworkPolicies": "Enabled",
+            "delegations": [
+              
+            ]
+          }		  
         ]
       },
       "metadata": {
@@ -144,7 +154,7 @@
       "metadata": {
         "description": "Api key value applied to the 'Custom' product."
       }
-    },	
+    },
     "frontDoorName": {
       "type": "string",
       "defaultValue": "webfront-afd",
@@ -284,10 +294,12 @@
         "S1",
         "S2",
         "S3",
-        "P1",
-        "P2",
-        "P3",
-        "P4"
+		"P1v2",
+        "P2v2",
+		"P3v2",
+        "P1v3",
+        "P3v3",
+		"P1v3"
       ],
       "metadata": {
         "description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
@@ -315,12 +327,14 @@
     "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[0].nsg)]",
     "nsgId2": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[1].nsg)]",
     "nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[2].nsg)]",
+	"nsgId4": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[3].nsg)]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "apimId": "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))]",
     "appInsightsId": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
     "apimSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[0].name)]",
     "appsvcSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[1].name)]",
     "aciSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[2].name)]",
+	"endpointSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[3].name)]",
     "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces/', variables('workspaceName'))]",
     "loggerId": "[resourceId('Microsoft.ApiManagement/service/loggers', variables('apimServiceName'), variables('appInsightsName'))]",
     "frontDoorId": "[resourceId('Microsoft.Network/frontdoors', variables('frontDoorName'))]",
@@ -333,9 +347,14 @@
     "webfrontEchoApiId": "[resourceId('Microsoft.ApiManagement/service/apis', variables('apimServiceName'), 'webfrontEchoApi')]",
     "customProductId": "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]",
     "testMethodId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'loaderApi', 'test')]",
-    "assetsAppServicePrivateEndpointGroupName": "assets",
-    "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('assetsAppServicePrivateEndpointGroupName'))]",
-    "appServicePrivateDnsZoneGroup": "[concat(parameters('appServicePrivateEndpointName'),'/', variables('assetsAppServicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+    "appServiceId": "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]",
+    "appServicePublicDNSZoneForwarder": ".azurewebsites.net",
+    "appServicePrivateDnsZoneName": "[concat('privatelink',variables('appServicePublicDNSZoneForwarder'))]",
+    "appServicePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('appServicePrivateDnsZoneName'))]",
+    "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', parameters('appServicePrivateEndpointName'))]",
+    "appservicePrivateEndpointGroupName": "sites",
+    "appServicePrivateDnsZoneGroupName": "[concat(parameters('appServicePrivateEndpointName'),'/', variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+    "appServicePrivateDnsZoneGroupId": "[resourceId('Microsoft.Network/privateEndpoints/privateDnsZoneGroups', parameters('appServicePrivateEndpointName'), concat(variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup'))]",
     "aciNetworkProfileName": "[concat(parameters('applicationPrefix'),'-networkprofile')]"
   },
   "resources": [
@@ -886,7 +905,7 @@
                     "format": "xml"
                   }
                 }
-              ]			  
+              ]
             },
             {
               "type": "operations",
@@ -917,7 +936,7 @@
                     "format": "xml"
                   }
                 }
-              ]			  
+              ]
             },
             {
               "apiVersion": "2019-12-01",
@@ -971,38 +990,42 @@
       "type": "Microsoft.ApiManagement/service/products/apis",
       "apiVersion": "2020-06-01-preview",
       "name": "[concat(variables('apimServiceName'), '/custom/loaderApi')]",
-	  "properties":{},
+      "properties": {
+        
+      },
       "dependsOn": [
         "[variables('apimId')]",
-		"[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
+        "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
       ]
     },
     {
       "type": "Microsoft.ApiManagement/service/products/apis",
       "apiVersion": "2020-06-01-preview",
       "name": "[concat(variables('apimServiceName'), '/custom/webfrontEchoApi')]",
-	  "properties":{},
+      "properties": {
+        
+      },
       "dependsOn": [
-		"[variables('apimId')]",
+        "[variables('apimId')]",
         "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
       ]
     },
-	{
-	  "type": "Microsoft.ApiManagement/service/subscriptions",
-	  "name": "[concat(variables('apimServiceName'), '/custom-admin-subscription')]",
-	  "apiVersion": "2019-01-01",
-	  "properties": {
-		"scope": "[resourceId('Microsoft.ApiManagement/service/products', parameters('apimServiceName'), 'custom')]",
-		"displayName": "custom-admin-subscription",
-		"primaryKey": "[parameters('apimApiKey')]",
-		"state": "active",
-		"allowTracing": "true"
-	  },
-	  "dependsOn": [
-			"[variables('apimId')]",
-			"[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
-	  ]  
-	},	
+    {
+      "type": "Microsoft.ApiManagement/service/subscriptions",
+      "name": "[concat(variables('apimServiceName'), '/custom-admin-subscription')]",
+      "apiVersion": "2019-01-01",
+      "properties": {
+        "scope": "[resourceId('Microsoft.ApiManagement/service/products', parameters('apimServiceName'), 'custom')]",
+        "displayName": "custom-admin-subscription",
+        "primaryKey": "[parameters('apimApiKey')]",
+        "state": "active",
+        "allowTracing": "true"
+      },
+      "dependsOn": [
+        "[variables('apimId')]",
+        "[resourceId('Microsoft.ApiManagement/service/products', variables('apimServiceName'), 'custom')]"
+      ]
+    },
     {
       "type": "Microsoft.ApiManagement/service/providers/diagnosticsettings",
       "name": "[concat(variables('apimServiceName'), '/Microsoft.Insights/service')]",
@@ -1331,6 +1354,84 @@
         "networkProfile": {
           "id": "[resourceId('Microsoft.Network/networkProfiles', variables('aciNetworkProfileName'))]"
         }
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones",
+      "apiVersion": "2018-09-01",
+      "name": "[variables('appServicePrivateDnsZoneName')]",
+      "location": "global",
+      "properties": {
+        "maxNumberOfRecordSets": 25000,
+        "maxNumberOfVirtualNetworkLinks": 1000,
+        "maxNumberOfVirtualNetworkLinksWithRegistration": 100
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateDnsZones/virtualNetworkLinks",
+      "apiVersion": "2018-09-01",
+      "name": "[concat(variables('appServicePrivateDnsZoneName'), '/link_to_', toLower(variables('virtualNetworkName')))]",
+      "location": "global",
+      "dependsOn": [
+        "[variables('appServicePrivateDnsZoneId')]",
+        "[variables('vnetId')]"
+      ],
+      "properties": {
+        "registrationEnabled": false,
+        "virtualNetwork": {
+          "id": "[variables('vnetId')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints",
+      "apiVersion": "2020-04-01",
+      "name": "[parameters('appServicePrivateEndpointName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('vnetId')]",
+        "[variables('appServiceId')]"
+      ],
+      "properties": {
+        "privateLinkServiceConnections": [
+          {
+            "name": "[parameters('appServicePrivateEndpointName')]",
+            "properties": {
+              "privateLinkServiceId": "[variables('appServiceId')]",
+              "groupIds": [
+                "[variables('appservicePrivateEndpointGroupName')]"
+              ]
+            }
+          }
+        ],
+        "subnet": {
+          "id": "[variables('endpointSubnetId')]"
+        },
+        "customDnsConfigs": [
+          {
+            "fqdn": "[concat(parameters('appServiceName'), variables('appServicePublicDNSZoneForwarder'))]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/privateEndpoints/privateDnsZoneGroups",
+      "apiVersion": "2020-03-01",
+      "name": "[variables('appServicePrivateDnsZoneGroupName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[variables('appServicePrivateDnsZoneId')]",
+        "[variables('appServicePrivateEndpointId')]"
+      ],
+      "properties": {
+        "privateDnsZoneConfigs": [
+          {
+            "name": "dnsConfig",
+            "properties": {
+              "privateDnsZoneId": "[variables('appServicePrivateDnsZoneId')]"
+            }
+          }
+        ]
       }
     }
   ],

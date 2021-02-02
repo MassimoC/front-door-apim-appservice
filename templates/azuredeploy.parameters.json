@@ -24,7 +24,7 @@
       "value": true
     },
     "appServicePlanSku": {
-      "value": "S1"
+      "value": "P1v2"
     }
   }
 }
