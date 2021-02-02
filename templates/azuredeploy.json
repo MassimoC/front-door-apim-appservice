@@ -81,7 +81,7 @@
           {
             "name": "debug-snet",
             "addressPrefix": "10.0.2.0/28",
-            "nsg": "mc-debug-nsg",
+            "nsg": "mc-default-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Disabled",
             "delegations": [
@@ -96,7 +96,7 @@
           {
             "name": "endpoints-snet",
             "addressPrefix": "10.0.3.0/28",
-            "nsg": "mc-webfront-nsg",
+            "nsg": "mc-default-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Enabled",
             "delegations": [
@@ -286,11 +286,6 @@
       "type": "string",
       "defaultValue": "S1",
       "allowedValues": [
-        "F1",
-        "D1",
-        "B1",
-        "B2",
-        "B3",
         "S1",
         "S2",
         "S3",
@@ -1286,7 +1281,8 @@
       "name": "[variables('aciNetworkProfileName')]",
       "location": "[resourceGroup().location]",
       "dependsOn": [
-        "[variables('vnetId')]"
+        "[variables('vnetId')]",
+		"[variables('apimId')]"
       ],
       "properties": {
         "containerNetworkInterfaceConfigurations": [
@@ -1314,7 +1310,6 @@
       "name": "[variables('aciName')]",
       "location": "[parameters('location')]",
       "tags": {
-        
       },
       "dependsOn": [
         "[variables('vnetId')]",
@@ -1353,7 +1348,7 @@
         "osType": "Linux",
         "networkProfile": {
           "id": "[resourceId('Microsoft.Network/networkProfiles', variables('aciNetworkProfileName'))]"
-        }
+        }			
       }
     },
     {
