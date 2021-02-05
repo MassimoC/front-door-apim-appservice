@@ -977,7 +977,7 @@
         "[variables('apimId')]"
       ],
       "properties": {
-        "value": "<policies>\r\n  <inbound>\r\n    <!--Use consumer correlation id or generate new one-->\r\n    <set-variable name=\"correlation-id\" value=\"@(context.Request.Headers.ContainsKey(&quot;x-correlation-id&quot;) ? context.Request.Headers.GetValueOrDefault(&quot;x-correlation-id&quot;) : Guid.NewGuid().ToString())\" />\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n    <!--Trace the correlation id-->\r\n    <trace source=\"Global APIM Policy\" severity=\"information\">\r\n      <message>API Request received</message>\r\n      <metadata name=\"correlation-id\" value=\"@((string)context.Variables[&quot;correlation-id&quot;])\" />\r\n    </trace>\r\n  </inbound>\r\n  <backend>\r\n    <forward-request fail-on-error-status-code=\"true\" />\r\n  </backend>\r\n  <outbound>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n  </outbound>\r\n  <on-error>\r\n    <set-body template=\"none\">@($\"Something went wrong.  Please contact support with this correlation id: {(string)context.Variables[\"correlation-id\"]}.\")</set-body>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"x-correlation-id\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"correlation-id\"])</value>\r\n    </set-header>\r\n  </on-error>\r\n</policies>",
+        "value": "<policies>\r\n  <inbound>\r\n    <!--Use consumer correlation id or generate new one-->\r\n    <set-variable name=\"tid\" value=\"@(context.Request.Headers.ContainsKey(&quot;X-Transaction-ID&quot;) ? context.Request.Headers.GetValueOrDefault(&quot;X-Transaction-ID&quot;) : Guid.NewGuid().ToString())\" />\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"X-Transaction-ID\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"tid\"])</value>\r\n    </set-header>\r\n    <!--Trace the correlation id-->\r\n    <trace source=\"Global APIM Policy\" severity=\"information\">\r\n      <message>API Request received</message>\r\n      <metadata name=\"X-Transaction-ID\" value=\"@((string)context.Variables[&quot;tid&quot;])\" />\r\n    </trace>\r\n  </inbound>\r\n  <backend>\r\n    <forward-request fail-on-error-status-code=\"true\" />\r\n  </backend>\r\n  <outbound>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"X-Transaction-ID\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"tid\"])</value>\r\n    </set-header>\r\n  </outbound>\r\n  <on-error>\r\n    <set-body template=\"none\">@($\"Something went wrong.  Please contact support with this Transaction id: {(string)context.Variables[\"tid\"]}.\")</set-body>\r\n    <!--Set header for end-to-end correlation-->\r\n    <set-header name=\"X-Transaction-ID\" exists-action=\"override\">\r\n      <value>@((string)context.Variables[\"tid\"])</value>\r\n    </set-header>\r\n  </on-error>\r\n</policies>",
         "format": "xml"
       }
     },
@@ -1250,9 +1250,13 @@
             {
               "name": "ApplicationInsightKey",
               "value": "[reference(variables('appInsightsId'), '2015-05-01').InstrumentationKey]"
-            }
+            },
+            {
+              "name": "ExternalDependencyLocation",
+              "value": "https://httpbin.org/headers"
+            }			
           ],
-          "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.1",
+          "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.5",
           "alwaysOn": true,
           "http20Enabled": true,
           "minTlsVersion": "1.2",
