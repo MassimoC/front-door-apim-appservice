@@ -716,7 +716,7 @@
           ],
           "properties": {
             "description": "base URL of the downstream api",
-            "url": "https://mc-webfront-app.azurewebsites.net/api/v1",
+            "url": "[concat('https://', variables('appServiceName'), '.azurewebsites.net/api/v1')]",
             "protocol": "http",
             "credentials": {
               "query": {
