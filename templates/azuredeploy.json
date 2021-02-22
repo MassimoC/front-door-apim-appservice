@@ -56,7 +56,7 @@
           {
             "name": "apim-snet",
             "addressPrefix": "10.0.0.0/24",
-            "nsg": "mc-webfront-nsg",
+            "nsg": "webfront-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Disabled",
             "delegations": [
@@ -66,7 +66,7 @@
           {
             "name": "assets-snet",
             "addressPrefix": "10.0.1.0/27",
-            "nsg": "mc-assets-nsg",
+            "nsg": "assets-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Disabled",
             "delegations": [
@@ -81,7 +81,7 @@
           {
             "name": "debug-snet",
             "addressPrefix": "10.0.2.0/28",
-            "nsg": "mc-default-nsg",
+            "nsg": "default-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Disabled",
             "delegations": [
@@ -96,7 +96,7 @@
           {
             "name": "endpoints-snet",
             "addressPrefix": "10.0.3.0/28",
-            "nsg": "mc-default-nsg",
+            "nsg": "default-nsg",
             "privateEndpointNetworkPolicies": "Disabled",
             "privateLinkServiceNetworkPolicies": "Enabled",
             "delegations": [
@@ -263,7 +263,7 @@
     },
     "appServicePrivateEndpointName": {
       "type": "string",
-      "defaultValue": "mc-app-priv-edp",
+      "defaultValue": "app-priv-edp",
       "metadata": {
         "description": "Specifies the name of the private link to the appservice."
       }
@@ -319,10 +319,14 @@
     "wafPolicyName": "[concat(parameters('applicationPrefix'), parameters('wafPolicyName'))]",
     "virtualNetworkName": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').name)]",
     "aciName": "[concat(parameters('applicationPrefix'),'-', parameters('aciName'))]",
-    "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[0].nsg)]",
-    "nsgId2": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[1].nsg)]",
-    "nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[2].nsg)]",
-	"nsgId4": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[3].nsg)]",
+	"nsgName" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[0].nsg)]",
+	"nsgName2" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[1].nsg)]",
+	"nsgName3" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[2].nsg)]",
+	"nsgName4" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[3].nsg)]",
+    "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]",
+    "nsgId2": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName2'))]",
+	"nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName3'))]",
+	"nsgId4": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName4'))]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "apimId": "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))]",
     "appInsightsId": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
@@ -344,12 +348,13 @@
     "testMethodId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'loaderApi', 'test')]",
     "appServiceId": "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]",
     "appServicePublicDNSZoneForwarder": ".azurewebsites.net",
+	"appServicePrivateEndpointName": "[concat(parameters('applicationPrefix'),'-', parameters('appServicePrivateEndpointName'))]",
     "appServicePrivateDnsZoneName": "[concat('privatelink',variables('appServicePublicDNSZoneForwarder'))]",
     "appServicePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('appServicePrivateDnsZoneName'))]",
-    "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', parameters('appServicePrivateEndpointName'))]",
+    "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('appServicePrivateEndpointName'))]",
     "appservicePrivateEndpointGroupName": "sites",
-    "appServicePrivateDnsZoneGroupName": "[concat(parameters('appServicePrivateEndpointName'),'/', variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
-    "appServicePrivateDnsZoneGroupId": "[resourceId('Microsoft.Network/privateEndpoints/privateDnsZoneGroups', parameters('appServicePrivateEndpointName'), concat(variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup'))]",
+    "appServicePrivateDnsZoneGroupName": "[concat(variables('appServicePrivateEndpointName'),'/', variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup')]",
+    "appServicePrivateDnsZoneGroupId": "[resourceId('Microsoft.Network/privateEndpoints/privateDnsZoneGroups', variables('appServicePrivateEndpointName'), concat(variables('appservicePrivateEndpointGroupName'), 'PrivateDnsZoneGroup'))]",
     "aciNetworkProfileName": "[concat(parameters('applicationPrefix'),'-networkprofile')]"
   },
   "resources": [
@@ -369,7 +374,7 @@
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "name": "[parameters('virtualNetwork').subnets[0].nsg]",
+      "name": "[variables('nsgName')]",
       "apiVersion": "2019-09-01",
       "location": "[parameters('location')]",
       "properties": {
@@ -576,7 +581,7 @@
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "name": "[parameters('virtualNetwork').subnets[1].nsg]",
+      "name": "[variables('nsgName2')]",
       "apiVersion": "2019-09-01",
       "location": "[parameters('location')]",
       "properties": {
@@ -587,7 +592,7 @@
     },
     {
       "type": "Microsoft.Network/networkSecurityGroups",
-      "name": "[parameters('virtualNetwork').subnets[2].nsg]",
+      "name": "[variables('nsgName3')]",
       "apiVersion": "2019-09-01",
       "location": "[parameters('location')]",
       "properties": {
@@ -618,8 +623,8 @@
               "name": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].name]",
               "properties": {
                 "addressPrefix": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].addressPrefix]",
-                "networkSecurityGroup": {
-                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', parameters('virtualNetwork').subnets[copyIndex('subnets')].nsg)]"
+                "networkSecurityGroup": { 
+                  "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[copyIndex('subnets')].nsg))]"
                 },
                 "privateEndpointNetworkPolicies": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].privateEndpointNetworkPolicies]",
                 "privateLinkServiceNetworkPolicies": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].privateLinkServiceNetworkPolicies]",
@@ -1256,7 +1261,7 @@
               "value": "https://httpbin.org/headers"
             }			
           ],
-          "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.5",
+          "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.6",
           "alwaysOn": true,
           "http20Enabled": true,
           "minTlsVersion": "1.2",
@@ -1385,7 +1390,7 @@
     {
       "type": "Microsoft.Network/privateEndpoints",
       "apiVersion": "2020-04-01",
-      "name": "[parameters('appServicePrivateEndpointName')]",
+      "name": "[variables('appServicePrivateEndpointName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
         "[variables('vnetId')]",
@@ -1394,7 +1399,7 @@
       "properties": {
         "privateLinkServiceConnections": [
           {
-            "name": "[parameters('appServicePrivateEndpointName')]",
+            "name": "[variables('appServicePrivateEndpointName')]",
             "properties": {
               "privateLinkServiceId": "[variables('appServiceId')]",
               "groupIds": [
