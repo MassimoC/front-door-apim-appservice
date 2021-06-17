@@ -638,17 +638,22 @@
     {
       "name": "[variables('appInsightsName')]",
       "type": "Microsoft.Insights/components",
-      "apiVersion": "2018-05-01-preview",
+      "apiVersion": "2020-02-02-preview",
       "location": "[parameters('location')]",
-      "kind": "web",
+      "dependsOn": [
+        "[variables('workspaceId')]"
+      ],	  
       "tags": {
         "name": "[variables('appInsightsName')]",
         "resource": "[variables('apimServiceName')]",
         "service": "Application Insights"
       },
       "properties": {
+	    "ApplicationId": "[variables('appInsightsName')]",
         "Application_Type": "web",
-        "Request_Source": "rest"
+		"Flow_Type": "Redfield",
+        "Request_Source": "rest",
+		"WorkspaceResourceId": "[variables('workspaceId')]"
       }
     },
     {
@@ -1029,7 +1034,7 @@
     {
       "type": "Microsoft.ApiManagement/service/providers/diagnosticsettings",
       "name": "[concat(variables('apimServiceName'), '/Microsoft.Insights/service')]",
-      "apiVersion": "2016-09-01",
+      "apiVersion": "2017-05-01-preview",
       "location": "[parameters('location')]",
       "dependsOn": [
         "[variables('apimId')]",
@@ -1037,6 +1042,7 @@
       ],
       "properties": {
         "workspaceId": "[variables('workspaceId')]",
+		"logAnalyticsDestinationType" : "Dedicated",
         "logs": [
           {
             "category": "GatewayLogs",
