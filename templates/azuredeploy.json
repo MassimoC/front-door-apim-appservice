@@ -852,6 +852,13 @@
                   "samplingType": "fixed",
                   "percentage": 100
                 },
+				"frontend": {
+					"request": {
+						"headers": ["x-azure-ref"]
+					}
+				},
+				"logClientIp": true,
+				"httpCorrelationProtocol": "W3C",		
                 "enableHttpCorrelationHeaders": true
               }
             }
