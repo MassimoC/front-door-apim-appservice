@@ -102,7 +102,7 @@
             "delegations": [
               
             ]
-          }		  
+          }
         ]
       },
       "metadata": {
@@ -289,12 +289,12 @@
         "S1",
         "S2",
         "S3",
-		"P1v2",
+        "P1v2",
         "P2v2",
-		"P3v2",
+        "P3v2",
         "P1v3",
         "P3v3",
-		"P1v3"
+        "P1v3"
       ],
       "metadata": {
         "description": "Describes plan's pricing tier and capacity. Check details at https://azure.microsoft.com/en-us/pricing/details/app-service/"
@@ -319,21 +319,21 @@
     "wafPolicyName": "[concat(parameters('applicationPrefix'), parameters('wafPolicyName'))]",
     "virtualNetworkName": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').name)]",
     "aciName": "[concat(parameters('applicationPrefix'),'-', parameters('aciName'))]",
-	"nsgName" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[0].nsg)]",
-	"nsgName2" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[1].nsg)]",
-	"nsgName3" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[2].nsg)]",
-	"nsgName4" : "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[3].nsg)]",
+    "nsgName": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[0].nsg)]",
+    "nsgName2": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[1].nsg)]",
+    "nsgName3": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[2].nsg)]",
+    "nsgName4": "[concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[3].nsg)]",
     "nsgId": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]",
     "nsgId2": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName2'))]",
-	"nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName3'))]",
-	"nsgId4": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName4'))]",
+    "nsgId3": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName3'))]",
+    "nsgId4": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName4'))]",
     "vnetId": "[resourceId('Microsoft.Network/virtualNetworks', variables('virtualNetworkName'))]",
     "apimId": "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceName'))]",
     "appInsightsId": "[resourceId('Microsoft.Insights/components', variables('appInsightsName'))]",
     "apimSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[0].name)]",
     "appsvcSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[1].name)]",
     "aciSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[2].name)]",
-	"endpointSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[3].name)]",
+    "endpointSubnetId": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('virtualNetworkName'), parameters('virtualNetwork').subnets[3].name)]",
     "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces/', variables('workspaceName'))]",
     "loggerId": "[resourceId('Microsoft.ApiManagement/service/loggers', variables('apimServiceName'), variables('appInsightsName'))]",
     "frontDoorId": "[resourceId('Microsoft.Network/frontdoors', variables('frontDoorName'))]",
@@ -348,7 +348,7 @@
     "testMethodId": "[resourceId('Microsoft.ApiManagement/service/apis/operations', variables('apimServiceName'), 'loaderApi', 'test')]",
     "appServiceId": "[resourceId('Microsoft.Web/sites', variables('appServiceName'))]",
     "appServicePublicDNSZoneForwarder": ".azurewebsites.net",
-	"appServicePrivateEndpointName": "[concat(parameters('applicationPrefix'),'-', parameters('appServicePrivateEndpointName'))]",
+    "appServicePrivateEndpointName": "[concat(parameters('applicationPrefix'),'-', parameters('appServicePrivateEndpointName'))]",
     "appServicePrivateDnsZoneName": "[concat('privatelink',variables('appServicePublicDNSZoneForwarder'))]",
     "appServicePrivateDnsZoneId": "[resourceId('Microsoft.Network/privateDnsZones', variables('appServicePrivateDnsZoneName'))]",
     "appServicePrivateEndpointId": "[resourceId('Microsoft.Network/privateEndpoints', variables('appServicePrivateEndpointName'))]",
@@ -623,7 +623,7 @@
               "name": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].name]",
               "properties": {
                 "addressPrefix": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].addressPrefix]",
-                "networkSecurityGroup": { 
+                "networkSecurityGroup": {
                   "id": "[resourceId('Microsoft.Network/networkSecurityGroups', concat(parameters('applicationPrefix'),'-', parameters('virtualNetwork').subnets[copyIndex('subnets')].nsg))]"
                 },
                 "privateEndpointNetworkPolicies": "[parameters('virtualNetwork').subnets[copyIndex('subnets')].privateEndpointNetworkPolicies]",
@@ -642,18 +642,18 @@
       "location": "[parameters('location')]",
       "dependsOn": [
         "[variables('workspaceId')]"
-      ],	  
+      ],
       "tags": {
         "name": "[variables('appInsightsName')]",
         "resource": "[variables('apimServiceName')]",
         "service": "Application Insights"
       },
       "properties": {
-	    "ApplicationId": "[variables('appInsightsName')]",
+        "ApplicationId": "[variables('appInsightsName')]",
         "Application_Type": "web",
-		"Flow_Type": "Redfield",
+        "Flow_Type": "Redfield",
         "Request_Source": "rest",
-		"WorkspaceResourceId": "[variables('workspaceId')]"
+        "WorkspaceResourceId": "[variables('workspaceId')]"
       }
     },
     {
@@ -852,13 +852,15 @@
                   "samplingType": "fixed",
                   "percentage": 100
                 },
-				"frontend": {
-					"request": {
-						"headers": ["x-azure-ref"]
-					}
-				},
-				"logClientIp": true,
-				"httpCorrelationProtocol": "W3C",		
+                "frontend": {
+                  "request": {
+                    "headers": [
+                      "x-azure-ref"
+                    ]
+                  }
+                },
+                "logClientIp": true,
+                "httpCorrelationProtocol": "W3C",
                 "enableHttpCorrelationHeaders": true
               }
             }
@@ -1049,7 +1051,7 @@
       ],
       "properties": {
         "workspaceId": "[variables('workspaceId')]",
-		"logAnalyticsDestinationType" : "Dedicated",
+        "logAnalyticsDestinationType": "Dedicated",
         "logs": [
           {
             "category": "GatewayLogs",
@@ -1272,7 +1274,7 @@
             {
               "name": "ExternalDependencyLocation",
               "value": "https://httpbin.org/headers"
-            }			
+            }
           ],
           "linuxFxVersion": "DOCKER|massimocrippa/mmcr.skeleton:0.0.6",
           "alwaysOn": true,
@@ -1304,7 +1306,7 @@
       "location": "[resourceGroup().location]",
       "dependsOn": [
         "[variables('vnetId')]",
-		"[variables('apimId')]"
+        "[variables('apimId')]"
       ],
       "properties": {
         "containerNetworkInterfaceConfigurations": [
@@ -1332,6 +1334,7 @@
       "name": "[variables('aciName')]",
       "location": "[parameters('location')]",
       "tags": {
+        
       },
       "dependsOn": [
         "[variables('vnetId')]",
@@ -1370,7 +1373,7 @@
         "osType": "Linux",
         "networkProfile": {
           "id": "[resourceId('Microsoft.Network/networkProfiles', variables('aciNetworkProfileName'))]"
-        }			
+        }
       }
     },
     {
