@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Alerts.Name.Prefix": {
+      "value": "APIM"
+    },
+    "ApiManagement.Name": {
+      "value": "loy-webfront-apim"
+    },
+    "Alerts.Threshold.CapacityPercentage": {
+      "value": "80"
+    },
+    "Alerts.RequiredActions": {
+      "value": [
+        {
+          "actionGroupId": "/subscriptions/{subscriptionidhere}/resourceGroups/rg-frontdoory/providers/microsoft.insights/actionGroups/AzureAlerts"
+        }
+      ]
+    }
+  }
+}
+
+

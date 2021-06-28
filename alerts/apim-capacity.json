@@ -1,0 +1,97 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "Alerts.Name.Prefix": {
+      "type": "string",
+      "metadata": {
+        "description": "A prefix for the alert name"
+      }
+    },
+    "Alerts.RequiredActions": {
+      "type": "array",
+      "defaultValue": [
+        
+      ],
+      "metadata": {
+        "description": "A list of action groups to link to the alert"
+      }
+    },
+    "Application.Environment": {
+      "type": "string",
+      "defaultValue": "DEV",
+      "allowedValues": [
+        "DEV",
+        "TST",
+        "ACC",
+        "PRD"
+      ],
+      "metadata": {
+        "description": "Environment of the application"
+      }
+    },
+    "Azure.Tags": {
+      "type": "object",
+      "defaultValue": {
+        
+      },
+      "metadata": {
+        "description": "A list of tags to add to the Azure resources"
+      }
+    },
+    "ApiManagement.Name": {
+      "type": "string"
+    },
+    "Alerts.Threshold.CapacityPercentage": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    
+  },
+  "resources": [
+    {
+      "type": "microsoft.insights/metricAlerts",
+      "apiVersion": "2018-03-01",
+      "name": "[concat(parameters('Alerts.Name.Prefix'), '- High load (capacity) on Azure Api Management ', parameters('ApiManagement.Name'), ' (', parameters('Application.Environment'), ')')]",
+      "location": "global",
+      "properties": {
+        "description": "[concat('The API Management Capacity on ', parameters('ApiManagement.Name'), ' reached the threashold. You might want to scale your Azure API Management instance in (', parameters('Application.Environment'), ')')]",
+        "severity": 2,
+        "enabled": true,
+        "scopes": [
+          "[resourceId('Microsoft.ApiManagement/service', parameters('ApiManagement.Name'))]"
+        ],
+        "evaluationFrequency": "PT5M",
+        "windowSize": "PT15M",
+        "criteria": {
+          "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+          "allOf": [
+            {
+              "criterionType": "StaticThresholdCriterion",
+              "name": "Capacity",
+              "metricName": "Capacity",
+              "dimensions": [
+                {
+                  "name": "Location",
+                  "operator": "Include",
+                  "values": [
+                    "*"
+                  ]
+                }
+              ],
+              "operator": "GreaterThanOrEqual",
+              "threshold": "[parameters('Alerts.Threshold.CapacityPercentage')]",
+              "timeAggregation": "Average"
+            }
+          ]
+        },
+        "actions": "[parameters('Alerts.RequiredActions')]"
+      },
+      "dependsOn": [
+        
+      ],
+      "tags": "[parameters('Azure.Tags')]"
+    }
+  ]
+}
